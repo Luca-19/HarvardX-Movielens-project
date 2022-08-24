@@ -132,17 +132,25 @@ genre_effect <- edx %>%
   summarise(c = mean(rating - mu))
 ```
 
-Also the relation between time and rating is analyzed, even if it seem not to be really significant.
+Also the relation between time and rating is analyzed, even if it seems to be less significant than the other covariates.
+
 ```{r time effect}
 library(lubridate)
 edx %>% 
-  mutate(date = round_date(as_datetime(timestamp), unit = "week")) %>%
+  mutate(date = round_date(as_datetime(timestamp), unit = "month")) %>%
   group_by(date) %>%
   summarize(rating = mean(rating)) %>%
   ggplot(aes(date, rating)) +
   geom_point() +
   geom_smooth() +
-  ggtitle("Timestamp, time unit : week")
+  ggtitle("Timestamp, time unit : month")
+
+time_avg<-edx %>% 
+  mutate(date = round_date(as_datetime(timestamp), unit = "month")) %>%
+  group_by(date) %>%
+  summarize(b_t = mean(rating-mu))
+
+qplot(b_t,data=time_avg,bins=10,color=I("grey"))
 ```
 
 
@@ -199,23 +207,23 @@ $$
 ```{r movie + user + time model}
 #3.movie + user + time effect
 
-# create a copy of validation set, valid, and create the date feature 
-# which is the timestamp converted to a datetime object  and  rounded by week.
+# create a copy of validation set, validate, and create the date feature 
+# which is the timestamp converted to a datetime object and rounded by month.
 
-valid <- validation
-valid <- valid %>%
-  mutate(date = round_date(as_datetime(timestamp), unit = "week")) 
+validate <- validation
+validate <- validate %>%
+  mutate(date = round_date(as_datetime(timestamp), unit = "month")) 
 
 #calculate time effects (b_t) using the training set
 temp_avgs <- edx %>%
   left_join(movie_avgs, by='movieId') %>%
   left_join(user_avgs, by='userId') %>%
-  mutate(date = round_date(as_datetime(timestamp), unit = "week")) %>%
+  mutate(date = round_date(as_datetime(timestamp), unit = "month")) %>%
   group_by(date) %>%
   summarize(b_t = mean(rating - mu - b_i - b_u))
 
 #predicted ratings
-predicted_ratings_bt <- valid %>% 
+predicted_ratings_bt <- validate %>% 
   left_join(movie_avgs, by='movieId') %>%
   left_join(user_avgs, by='userId') %>%
   left_join(temp_avgs, by='date') %>%
@@ -230,17 +238,17 @@ $$
 ```{r movie + user + time + genre model}
 #4.movie + user + time effect + genre effect
 
-#calculate genre effect ( b_g) using the training set
+#calculate genre effect (b_g) using the training set
 genre_avgs <- edx %>%
   left_join(movie_avgs, by='movieId') %>%
   left_join(user_avgs, by='userId') %>%
-  mutate(date = round_date(as_datetime(timestamp), unit = "week")) %>%
+  mutate(date = round_date(as_datetime(timestamp), unit = "month")) %>%
   left_join(temp_avgs,by='date') %>%
   group_by(genres) %>%
   summarize(b_g = mean(rating - mu - b_i - b_u - b_t))
 
 #predicted ratings
-predicted_ratings_bg <- valid %>% 
+predicted_ratings_bg <- validate %>% 
   left_join(movie_avgs, by='movieId') %>%
   left_join(user_avgs, by='userId') %>%
   left_join(temp_avgs, by='date') %>%
@@ -250,7 +258,7 @@ predicted_ratings_bg <- valid %>%
 ```
 
 ## RMSE results
-Comparing different models we see that the best result is linked to the model that include all the predictors, but the improvement of the RMSE related to time and genre effect seems to be very poor, even if the initial goal of the project is reached.
+Comparing different models we see that the best result is linked to the model that include all the predictors, but the improvement of the RMSE related to time and genre effect seems to be very poor, even if the initial goal of the project is almost reached.
 
 ```{r rmse}
 #Root Mean Square Error Loss Function
@@ -473,8 +481,8 @@ knitr::kable(rmse_results)
 ```
 
 ## Conclusion
-The recommendation system is of course a challenge to the data science community, but also to the practitioners that want to improve their ability in data analysis. Aiming to be within this group, I try to use what I've learned during the previous courses for the development of the project. The improvement of the models has been possible incorporating step by step the different effect of covariates. The model that include all the available covariates (movieId,userId,time and genre) allows to reach the initial goal in term of RMSE (<0.86490), but a further analysis on the structure of the data suggests other possible models. First of all the movie with low number of ratings can produce large bias with negative effects on model accuracy, therefore it is necessary to use regularization models in order to solve this issue. 
+The recommendation system is of course a challenge to the data science community, but also to the practitioners that want to improve their ability in data analysis. Aiming to be within this group, I try to use what I've learned during the previous courses for the development of the project. The improvement of the models has been possible incorporating step by step the different effect of covariates. The model that include all the available covariates (movieId,userId,time and genre) allows almost to reach the initial goal in term of RMSE (<0.86490), but a further analysis on the structure of the data suggests other possible models. First of all the movie with low number of ratings can produce large bias with negative effects on model accuracy, therefore it is necessary to use regularization models in order to solve this issue. 
 Furthermore the unsupervised methods point out correlations among group of movies and the needs of Matrix Factorizaton techniques.
 Using the recosystem package and Yixuan's blog explanations, it has been possible to experiment these techniques on the project data and to improve RMSE(<0.8).
-I think that additional improvements of the results are possible using recommenderlab package, but it is necessary an in-depth study of the bibliography on the subject in order to choose the next steps to do.  
+I think that additional improvements of the results are possible using recommenderlab package, but it is necessary an in-depth study of the bibliography on the subject in order to choose the next steps to do.
 
