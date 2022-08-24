@@ -89,13 +89,21 @@ genre_effect <- edx %>%
 # time effect
 library(lubridate)
 edx %>% 
-  mutate(date = round_date(as_datetime(timestamp), unit = "week")) %>%
+  mutate(date = round_date(as_datetime(timestamp), unit = "month")) %>%
   group_by(date) %>%
   summarize(rating = mean(rating)) %>%
   ggplot(aes(date, rating)) +
   geom_point() +
   geom_smooth() +
-  ggtitle("Timestamp, time unit : week")
+  ggtitle("Timestamp, time unit : month")
+
+time_avg<-edx %>% 
+  mutate(date = round_date(as_datetime(timestamp), unit = "month")) %>%
+  group_by(date) %>%
+  summarize(b_t = mean(rating-mu))
+
+qplot(b_t,data=time_avg,bins=10,color=I("grey"))
+  
 
 # Model analysis
 
@@ -131,22 +139,22 @@ predicted_ratings_bu <- validation %>%
 
 #3.movie + user + time effect
 
-#create a copy of validation set, valid, and create the date feature which is the timestamp converted to a datetime object  and  rounded by week.
+#create a copy of validation set, validate, and create the date feature which is the timestamp converted to a datetime object  and  rounded by month.
 
-valid <- validation
-valid <- valid %>%
-  mutate(date = round_date(as_datetime(timestamp), unit = "week")) 
+validate <- validation
+validate <- validate %>%
+  mutate(date = round_date(as_datetime(timestamp), unit = "month")) 
 
 #calculate time effects (b_t) using the training set
 temp_avgs <- edx %>%
   left_join(movie_avgs, by='movieId') %>%
   left_join(user_avgs, by='userId') %>%
-  mutate(date = round_date(as_datetime(timestamp), unit = "week")) %>%
+  mutate(date = round_date(as_datetime(timestamp), unit = "month")) %>%
   group_by(date) %>%
   summarize(b_t = mean(rating - mu - b_i - b_u))
 
 #predicted ratings
-predicted_ratings_bt <- valid %>% 
+predicted_ratings_bt <- validate %>% 
   left_join(movie_avgs, by='movieId') %>%
   left_join(user_avgs, by='userId') %>%
   left_join(temp_avgs, by='date') %>%
@@ -159,13 +167,13 @@ predicted_ratings_bt <- valid %>%
 genre_avgs <- edx %>%
   left_join(movie_avgs, by='movieId') %>%
   left_join(user_avgs, by='userId') %>%
-  mutate(date = round_date(as_datetime(timestamp), unit = "week")) %>%
+  mutate(date = round_date(as_datetime(timestamp), unit = "month")) %>%
   left_join(temp_avgs,by='date') %>%
   group_by(genres) %>%
   summarize(b_g = mean(rating - mu - b_i - b_u - b_t))
 
 #predicted ratings
-predicted_ratings_bg <- valid %>% 
+predicted_ratings_bg <- validate %>% 
   left_join(movie_avgs, by='movieId') %>%
   left_join(user_avgs, by='userId') %>%
   left_join(temp_avgs, by='date') %>%
